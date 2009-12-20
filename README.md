@@ -13,13 +13,12 @@ The functionality of PyChap is just some very simple logic code, but sometimes
 seeing an implementation of a difficult to understand idea can help get a better
 understanding of it.
 
-I'd like to know what you think.
+### I'd like to know what you think.
   - [@kixxauth]
   - There will be a blog post with comments before long
   - Drop me a note on GitHub with the messaging system
 
-Previous Work
--------------
+### Previous Work
   - [Peter Chng] did a PHP and Javascript [implementation][chng-chap]
 
   [digest-rfc]:http://tools.ietf.org/html/rfc2617#section-3
