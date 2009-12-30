@@ -10,28 +10,66 @@ UNMODIFIED = 'the cnonce or response were not modified'
 DENIED = 'the supplied passkey response did not authenticate'
 OK = 'authenticated ok'
 
+class ChapUser():
+  def __init__(self,
+               username=None,
+               passkey=None,
+               nonce=None,
+               nextnonce=None,
+               cnonce=None,
+               response=None):
+    self.username = username
+    self.passkey = passkey
+    self.nonce = nonce
+    self.nextnonce = nonce
+    self.cnonce = cnonce
+    self.response = response
+
 def createNonce(username):
   return hmac.new(
       str(datetime.datetime.utcnow()) + username,
       str(random.randint(0, 9999)),
       hashlib.sha1).hexdigest()
 
-def authenticate(user, putuser):
-  if not isinstance(user, dict):
-    return None
+def authenticate(putuser,
+                 username=None,
+                 passkey=None,
+                 nonce=None,
+                 nextnonce=None,
+                 cnonce=None,
+                 response=None):
 
   assert callable(putuser), \
-      'second argument to pychap.authenticate() should be a function'
+      'first argument to pychap.authenticate() must be a function'
 
-  assert isinstance(user.get('username'), basestring), \
-      'user["username"] passed to pychap.authenticate() should be a string.'
+  assert isinstance(username, basestring), \
+      'username passed to pychap.authenticate() must be a string.'
+
+  assert (isinstance(nonce, basestring) or nonce is None), \
+      'nonce passed to pychap.authenticate() must be a string or None'
+
+  assert (isinstance(nextnonce, basestring) or nextnonce is None), \
+      'nextnonce passed to pychap.authenticate() must be a string or None'
+
+  assert (isinstance(cnonce, basestring) or cnonce is None), \
+      'cnonce passed to pychap.authenticate() must be a string or None'
+
+  assert (isinstance(response, basestring) or response is None), \
+      'response passed to pychap.authenticate() must be a string or None'
+
+  user = ChapUser(username=username,
+                  passkey=passkey,
+                  nonce=nonce,
+                  nextnonce=nextnonce,
+                  cnonce=cnonce,
+                  response=response)
 
   # new user
-  if user.get('nonce') is None or user.get('nextnonce') is None:
-    user['nonce'] = createNonce(user['username'])
-    user['nextnonce'] = createNonce(user['username'])
-    user['authmessage'] = USER_NA
-    user['authenticated'] = False
+  if nonce is None or nextnonce is None:
+    user.nonce = createNonce(username)
+    user.nextnonce = createNonce(username)
+    user.message = USER_NA
+    user.authenticated = False
     putuser(user)
     return user 
 
