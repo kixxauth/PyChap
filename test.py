@@ -107,62 +107,61 @@ class NewUser(unittest.TestCase):
   def testNewUser(self):
     """authenticate() a new user (no nonce or nextnonce)"""
     self.assertEqual(
-        pychap.authenticate(self.callback, *{'username':'foo'}),
+        pychap.authenticate(self.callback, **{'username':'foo'}),
         self.user)
 
 class NoCreds(unittest.TestCase):
   def testNoCreds(self):
     """authenticate() a user with no creds"""
-    user = {'username':'x', 'nonce':0, 'nextnonce':1}
-    user = pychap.authenticate(user, lambda : None)
+    user = {'username':'x', 'nonce': 'y', 'nextnonce': 'z'}
+    user = pychap.authenticate(lambda : None, **user)
 
     # nonce
-    self.assertEqual(user.get('nonce'), 0)
+    self.assertEqual(user.nonce, 'y')
 
     #nextnonce
-    self.assertEqual(user.get('nextnonce'), 1)
+    self.assertEqual(user.nextnonce, 'z')
 
     #passkey
-    self.assertEqual(user.get('passkey'), None)
+    self.assertEqual(user.passkey, None)
 
     #authenticated
-    self.assertEqual(user.get('authenticated'), False)
+    self.assertEqual(user.authenticated, False)
 
     #authmessage
-    self.assertEqual(user.get('authmessage'), pychap.MISSING_CREDS)
+    self.assertEqual(user.message, pychap.MISSING_CREDS)
 
 class SettingPasskey(unittest.TestCase):
   def callback(self, user):
+    #authmessage
+    self.assertEqual(user.message, pychap.SETTING_PASSKEY)
+
     # nonce
-    self.assertEqual(user.get('nonce'), 1)
+    self.assertEqual(user.nonce, 'b')
 
     #nextnonce
-    assert isinstance(user.get('nextnonce'), basestring), \
+    assert isinstance(user.nextnonce, basestring), \
         'nextnonce should be a string.'
-    self.assertEqual(len(user.get('nextnonce')), 40)
+    self.assertEqual(len(user.nextnonce), 40)
 
     #passkey
-    self.assertEqual(user.get('passkey'), 2)
+    self.assertEqual(user.passkey, 'c')
 
     #authenticated
-    self.assertEqual(user.get('authenticated'), True)
-
-    #authmessage
-    self.assertEqual(user.get('authmessage'), pychap.SETTING_PASSKEY)
+    self.assertEqual(user.authenticated, True)
 
     self.user = user
 
   def testSetPasskey(self):
     """authenticate() a user with no passkey"""
     user = {
-        'username':'x',
-        'nonce':0,
-        'nextnonce':1,
-        'cnonce':2,
-        'response':3
+        'username': 'x',
+        'nonce': 'a',
+        'nextnonce': 'b',
+        'cnonce': 'c',
+        'response': 'd'
         }
-    self.assertEqual(
-        pychap.authenticate(user, self.callback),
+    self.assertEqual(pychap.authenticate(self.callback, **user),
         self.user)
 
 class AuthWithoutModifiedPasskey(unittest.TestCase):
@@ -221,22 +220,22 @@ class AuthWithoutModifiedPasskey(unittest.TestCase):
         'response': response,
         'passkey': 1
         }
-    user = pychap.authenticate(user, lambda : None)
+    user = pychap.authenticate(lambda : None, **user)
 
     # nonce
-    self.assertEqual(user.get('nonce'), nonce)
+    self.assertEqual(user.nonce, nonce)
 
     #nextnonce
-    self.assertEqual(user.get('nextnonce'), nextnonce)
+    self.assertEqual(user.nextnonce, nextnonce)
 
     #passkey
-    self.assertEqual(user.get('passkey'), 1) 
+    self.assertEqual(user.passkey, 1) 
 
     #authenticated
-    self.assertEqual(user.get('authenticated'), False)
+    self.assertEqual(user.authenticated, False)
 
     #authmessage
-    self.assertEqual(user.get('authmessage'), pychap.UNMODIFIED)
+    self.assertEqual(user.message, pychap.UNMODIFIED)
 
 class NotAuthenticated(unittest.TestCase):
   def testInvalidPasskey(self):
@@ -269,41 +268,41 @@ class NotAuthenticated(unittest.TestCase):
         'response': 'x',
         'passkey': 'x'
         }
-    user = pychap.authenticate(user, lambda : None)
+    user = pychap.authenticate(lambda : None, **user)
 
     # nonce
-    self.assertEqual(user.get('nonce'), 'x')
+    self.assertEqual(user.nonce, 'x')
 
     #nextnonce
-    self.assertEqual(user.get('nextnonce'), 'x')
+    self.assertEqual(user.nextnonce, 'x')
 
     #passkey
-    self.assertEqual(user.get('passkey'), 'x')
+    self.assertEqual(user.passkey, 'x')
 
     #authenticated
-    self.assertEqual(user.get('authenticated'), False)
+    self.assertEqual(user.authenticated, False)
 
     #authmessage
-    self.assertEqual(user.get('authmessage'), pychap.DENIED)
+    self.assertEqual(user.message, pychap.DENIED)
 
 class Authenticated(unittest.TestCase):
   def callback(self, user):
     # nonce
-    self.assertEqual(user.get('nonce'), 'c')
+    self.assertEqual(user.nonce, 'c')
 
     #nextnonce
-    assert isinstance(user.get('nextnonce'), basestring), \
+    assert isinstance(user.nextnonce, basestring), \
         'nextnonce should be a string.'
-    self.assertEqual(len(user.get('nextnonce')), 40)
+    self.assertEqual(len(user.nextnonce), 40)
 
     #passkey
-    self.assertEqual(user.get('passkey'), 'd')
+    self.assertEqual(user.passkey, 'd')
 
     #authenticated
-    self.assertEqual(user.get('authenticated'), True)
+    self.assertEqual(user.authenticated, True)
 
     #authmessage
-    self.assertEqual(user.get('authmessage'), pychap.OK)
+    self.assertEqual(user.message, pychap.OK)
 
     self.user = user
 
@@ -318,7 +317,7 @@ class Authenticated(unittest.TestCase):
         'passkey': '58e6b3a414a1e090dfc6029add0f3555ccba127f'
         }
     self.assertEqual(
-        pychap.authenticate(user, self.callback),
+        pychap.authenticate(self.callback, **user),
         self.user)
 
 if __name__ == '__main__':

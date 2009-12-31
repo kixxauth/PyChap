@@ -3,12 +3,12 @@ import hmac
 import datetime
 import random
 
-USER_NA = 'user does not exist'
-MISSING_CREDS = 'proper cnonce or response was not supplied'
+USER_NA         = 'user does not exist'
+MISSING_CREDS   = 'proper cnonce or response was not supplied'
 SETTING_PASSKEY = 'setting or resetting the user passkey'
-UNMODIFIED = 'the cnonce or response were not modified'
-DENIED = 'the supplied passkey response did not authenticate'
-OK = 'authenticated ok'
+UNMODIFIED      = 'the cnonce or response were not modified'
+DENIED          = 'the supplied passkey response did not authenticate'
+OK              = 'authenticated ok'
 
 class ChapUser():
   def __init__(self,
@@ -21,7 +21,7 @@ class ChapUser():
     self.username = username
     self.passkey = passkey
     self.nonce = nonce
-    self.nextnonce = nonce
+    self.nextnonce = nextnonce
     self.cnonce = cnonce
     self.response = response
 
@@ -65,7 +65,7 @@ def authenticate(putuser,
                   response=response)
 
   # new user
-  if nonce is None or nextnonce is None:
+  if user.nonce is None or user.nextnonce is None:
     user.nonce = createNonce(username)
     user.nextnonce = createNonce(username)
     user.message = USER_NA
@@ -74,50 +74,50 @@ def authenticate(putuser,
     return user 
 
   # no credentials supplied by the client
-  if user.get('cnonce') is None or user.get('response') is None:
-    user['authmessage'] = MISSING_CREDS 
-    user['authenticated'] = False
+  if user.cnonce is None or user.response is None:
+    user.message = MISSING_CREDS 
+    user.authenticated = False
     return user
 
   # no stored passkey: setting or re-setting the passkey
-  if user.get('passkey') is None:
-    user['passkey'] = user['cnonce']
-    user['nonce'] = user['nextnonce']
-    user['nextnonce'] = createNonce(user['username'])
-    user['authenticated'] = True
-    user['authmessage'] = SETTING_PASSKEY
+  if user.passkey is None:
+    user.passkey = cnonce
+    user.nonce = nextnonce
+    user.nextnonce = createNonce(user.username)
+    user.authenticated = True
+    user.message = SETTING_PASSKEY
     putuser(user)
     return user
 
   # Now that we know we have a passkey, nonce, and nextnonce for the user we
   # have to make sure that the client has at least modified nonce and nextnonce
   # into response and cnonce with user's passkey.
-  assert isinstance(user.get('nonce'), basestring), \
+  assert isinstance(user.nonce, basestring), \
       'user["nonce"] passed to pychap.authenticate() should be a string.'
 
-  assert isinstance(user.get('nextnonce'), basestring), \
+  assert isinstance(user.nextnonce, basestring), \
       'user["nextnonce"] passed to pychap.authenticate() should be a string.'
 
-  if user['cnonce'] == hashlib.sha1(
-      hashlib.sha1(user['nextnonce']).hexdigest()).hexdigest() \
-          or user.get('response') == hashlib.sha1(user['nonce']).hexdigest():
-    user['authenticated'] = False
-    user['authmessage'] = UNMODIFIED
+  if user.cnonce == hashlib.sha1(
+      hashlib.sha1(user.nextnonce).hexdigest()).hexdigest() \
+          or user.response == hashlib.sha1(user.nonce).hexdigest():
+    user.authenticated = False
+    user.message = UNMODIFIED
     return user
 
   # authenticate
-  assert isinstance(user.get('passkey'), basestring), \
-      'user["passkey"] passed to pychap.authenticate() should be a string.'
-  if hashlib.sha1(user.get('response')).hexdigest() != user['passkey']:
-    user['authenticated'] = False
-    user['authmessage'] = DENIED
+  assert isinstance(user.passkey, basestring), \
+      'user.passkey passed to pychap.authenticate() should be a string.'
+  if hashlib.sha1(user.response).hexdigest() != user.passkey:
+    user.authenticated = False
+    user.message = DENIED
     return user
 
   # user is ok
-  user['passkey'] = user['cnonce']
-  user['nonce'] = user['nextnonce']
-  user['nextnonce'] = createNonce(user['username'])
-  user['authenticated'] = True
-  user['authmessage'] = OK
+  user.passkey = cnonce
+  user.nonce = nextnonce
+  user.nextnonce = createNonce(user.username)
+  user.authenticated = True
+  user.message = OK
   putuser(user)
   return user
