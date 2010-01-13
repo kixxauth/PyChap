@@ -320,5 +320,40 @@ class Authenticated(unittest.TestCase):
         pychap.authenticate(self.callback, **user),
         self.user)
 
+class Unicode(unittest.TestCase):
+  def callback(self, user):
+    # nonce
+    self.assertEqual(user.nonce, 'c')
+
+    #nextnonce
+    assert isinstance(user.nextnonce, basestring), \
+        'nextnonce should be a string.'
+    self.assertEqual(len(user.nextnonce), 40)
+
+    #passkey
+    self.assertEqual(user.passkey, 'd')
+
+    #authenticated
+    self.assertEqual(user.authenticated, True)
+
+    #authmessage
+    self.assertEqual(user.message, pychap.OK)
+
+    self.user = user
+
+  def testNewUser(self):
+    """user authenticates"""
+    user = {
+        'username': u'a',
+        'nonce': u'b',
+        'nextnonce': u'c',
+        'cnonce': u'd',
+        'response': u'e',
+        'passkey': u'58e6b3a414a1e090dfc6029add0f3555ccba127f'
+        }
+    self.assertEqual(
+        pychap.authenticate(self.callback, **user),
+        self.user)
+
 if __name__ == '__main__':
     unittest.main()

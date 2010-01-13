@@ -75,8 +75,14 @@ In the following pseudo code example the hash() function is a sha1 hash.
 
 ### Check out the documentation in pychap.py to learn more about the PyChap implementation of this protocol.
 
+Dependencies
+------------
+The hamac module and the hashlib module.
+
 Usage
 -----
+PyChap has only been tested on Python 2.5 and Python 2.6
+
 Simply grab a copy of pychap.py, add it to your project and import it into your
 server side script where authentication takes place. See the docs for the
 authenticate() function for more info.
