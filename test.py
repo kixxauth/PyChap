@@ -4,6 +4,9 @@ import unittest
 import hashlib
 import pychap
 
+class Prototype(object):
+  pass
+
 class CreateNonce(unittest.TestCase):
   def testCreateNonce(self):
     """createNonce()"""
@@ -27,14 +30,14 @@ class InvalidParams(unittest.TestCase):
     ex = False
     try:
       pychap.authenticate(None)
-    except AssertionError:
+    except TypeError:
       ex = True
     assert ex, 'params (None) raises exception.'
 
     ex = False
     try:
       pychap.authenticate((lambda : None))
-    except AssertionError:
+    except TypeError:
       ex = True
     assert ex, 'params (lambda, None) raises exception.'
 
@@ -45,38 +48,57 @@ class InvalidParams(unittest.TestCase):
       ex = True
     assert ex, 'params (lambda, 1) raises exception.'
 
+    user = Prototype()
+    user.nonce = 4
     ex = False
     try:
-      pychap.authenticate((lambda : None),
-                          username='',
-                          nonce=4)
+      pychap.authenticate((lambda : None), user)
     except AssertionError:
       ex = True
     assert ex, 'params (lambda, "", 4) raises exception.'
 
+    user = Prototype()
+    user.username = 'x'
+    user.nonce = 4
     ex = False
     try:
-      pychap.authenticate((lambda : None),
-                          username='',
-                          nonce='',
-                          nextnonce=99)
+      pychap.authenticate((lambda : None), user)
+    except AssertionError:
+      ex = True
+    assert ex, 'params (lambda, "", 4) raises exception.'
+
+    user = Prototype()
+    user.username = 'x'
+    user.nonce = ''
+    user.nextnonce = 99
+    ex = False
+    try:
+      pychap.authenticate((lambda : None), user)
     except AssertionError:
       ex = True
     assert ex, 'params (lambda, "", "", "") raises exception.'
 
+    user = Prototype()
+    user.username = 'x'
+    user.nonce = 'x'
+    user.nextnonce = 'x'
+    user.cnonce = 1
     ex = False
     try:
-      pychap.authenticate((lambda : None),
-                          username='',
-                          nonce='',
-                          cnonce=False)
+      pychap.authenticate((lambda : None), user)
     except AssertionError:
       ex = True
     assert ex, 'params (lambda, "", "", False) raises exception.'
 
+    user = Prototype()
+    user.username = 'x'
+    user.nonce = 'x'
+    user.nextnonce = 'x'
+    user.cnonce = 'x'
+    user.response = [1]
     ex = False
     try:
-      pychap.authenticate((lambda : None), response=[])
+      pychap.authenticate((lambda : None), user)
     except AssertionError:
       ex = True
     assert ex, 'params (lambda, []) raises exception.'
@@ -94,7 +116,7 @@ class NewUser(unittest.TestCase):
     self.assertEqual(len(user.nextnonce), 40)
 
     #passkey
-    self.assertEqual(user.passkey, None)
+    self.assertEqual(getattr(user, 'passkey', None), None)
 
     #authenticated
     self.assertEqual(user.authenticated, False)
@@ -106,15 +128,25 @@ class NewUser(unittest.TestCase):
 
   def testNewUser(self):
     """authenticate() a new user (no nonce or nextnonce)"""
+    user = Prototype()
+    user.someother = 1
+    user.username = 'x'
     self.assertEqual(
-        pychap.authenticate(self.callback, **{'username':'foo'}),
+        pychap.authenticate(self.callback, user),
         self.user)
 
 class NoCreds(unittest.TestCase):
   def testNoCreds(self):
     """authenticate() a user with no creds"""
-    user = {'username':'x', 'nonce': 'y', 'nextnonce': 'z'}
-    user = pychap.authenticate(lambda : None, **user)
+    user = Prototype()
+    user.username = 'x'
+    user.nonce = 'y'
+    user.nextnonce = 'z'
+
+    def callback(u):
+      assert False, 'Callback called in MISSING_CREDS'
+
+    user = pychap.authenticate(callback, user)
 
     # nonce
     self.assertEqual(user.nonce, 'y')
@@ -123,7 +155,7 @@ class NoCreds(unittest.TestCase):
     self.assertEqual(user.nextnonce, 'z')
 
     #passkey
-    self.assertEqual(user.passkey, None)
+    self.assertEqual(getattr(user, 'passkey', None), None)
 
     #authenticated
     self.assertEqual(user.authenticated, False)
@@ -154,57 +186,16 @@ class SettingPasskey(unittest.TestCase):
 
   def testSetPasskey(self):
     """authenticate() a user with no passkey"""
-    user = {
-        'username': 'x',
-        'nonce': 'a',
-        'nextnonce': 'b',
-        'cnonce': 'c',
-        'response': 'd'
-        }
-    self.assertEqual(pychap.authenticate(self.callback, **user),
+    user = Prototype()
+    user.username = 'x'
+    user.nonce = 'a'
+    user.nextnonce = 'b'
+    user.cnonce = 'c'
+    user.response = 'd'
+    self.assertEqual(pychap.authenticate(self.callback, user),
         self.user)
 
 class AuthWithoutModifiedPasskey(unittest.TestCase):
-  def testInvalidNonce(self):
-    """invalid nonce"""
-    user = {
-        'username':'x',
-        'nonce': 1,
-        'nextnonce': 'x',
-        'cnonce': 3,
-        'response': 4,
-        'passkey': 1
-        }
-    ex = False
-    try:
-      user = pychap.authenticate(user, lambda : None)
-    except AssertionError, ae:
-      ex = ae
-
-    assert isinstance(ex, AssertionError), \
-        ('pychap.authenticate() '
-         'should raise an exception for an invalid nonce.')
-
-  def testInvalidNextnonce(self):
-    """invalid nextnonce"""
-    user = {
-        'username':'x',
-        'nonce': 'x',
-        'nextnonce': 1,
-        'cnonce': 3,
-        'response': 4,
-        'passkey': 1
-        }
-    ex = False
-    try:
-      user = pychap.authenticate(user, lambda : None)
-    except AssertionError, ae:
-      ex = ae
-
-    assert isinstance(ex, AssertionError), \
-        ('pychap.authenticate() '
-         'should raise an exception for an invalid nextnonce.')
-
   def testWithoutModifiedPasskey(self):
     """authenticate() a user without a modified passkey"""
     nonce = 'a_nonce'
@@ -212,15 +203,18 @@ class AuthWithoutModifiedPasskey(unittest.TestCase):
     response = hashlib.sha1(nonce).hexdigest()
     cnonce = hashlib.sha1(
       hashlib.sha1(nextnonce).hexdigest()).hexdigest()
-    user = {
-        'username':'x',
-        'nonce': nonce,
-        'nextnonce': nextnonce,
-        'cnonce': cnonce,
-        'response': response,
-        'passkey': 1
-        }
-    user = pychap.authenticate(lambda : None, **user)
+    user = Prototype()
+    user.username = 'x'
+    user.nonce = nonce
+    user.nextnonce = nextnonce
+    user.cnonce = cnonce
+    user.response = response
+    user.passkey = 'y'
+
+    def callback(u):
+      assert False, 'Callback called in MISSING_CREDS'
+
+    user = pychap.authenticate(callback, user)
 
     # nonce
     self.assertEqual(user.nonce, nonce)
@@ -229,7 +223,7 @@ class AuthWithoutModifiedPasskey(unittest.TestCase):
     self.assertEqual(user.nextnonce, nextnonce)
 
     #passkey
-    self.assertEqual(user.passkey, 1) 
+    self.assertEqual(user.passkey, 'y') 
 
     #authenticated
     self.assertEqual(user.authenticated, False)
@@ -240,35 +234,41 @@ class AuthWithoutModifiedPasskey(unittest.TestCase):
 class NotAuthenticated(unittest.TestCase):
   def testInvalidPasskey(self):
     """invalid passkey"""
-    user = {
-        'username':'x',
-        'nonce': 'x',
-        'nextnonce': 'x',
-        'cnonce': 3,
-        'response': 4,
-        'passkey': []
-        }
+    user = Prototype()
+    user.username = 'x'
+    user.nonce = 'x'
+    user.nextnonce = 'x'
+    user.cnonce = 'x'
+    user.response = 'x'
+    user.passkey = []
+
+    def callback(u):
+      assert False, 'Callback called in MISSING_CREDS'
+
     ex = False
     try:
-      user = pychap.authenticate(user, lambda : None)
+      user = pychap.authenticate(callback, user)
     except AssertionError, ae:
       ex = ae
 
-    assert isinstance(ex, AssertionError), \
+    assert ex.message, \
         ('pychap.authenticate() '
          'should raise an exception for an invalid passkey.')
 
   def testPasskey(self):
     """user is not authenticated"""
-    user = {
-        'username':'x',
-        'nonce': 'x',
-        'nextnonce': 'x',
-        'cnonce': 'x',
-        'response': 'x',
-        'passkey': 'x'
-        }
-    user = pychap.authenticate(lambda : None, **user)
+    user = Prototype()
+    user.username = 'x'
+    user.nonce = 'x'
+    user.nextnonce = 'x'
+    user.cnonce = 'x'
+    user.response = 'x'
+    user.passkey = 'x'
+
+    def callback(u):
+      assert False, 'Callback called in MISSING_CREDS'
+
+    user = pychap.authenticate(callback, user)
 
     # nonce
     self.assertEqual(user.nonce, 'x')
@@ -308,16 +308,15 @@ class Authenticated(unittest.TestCase):
 
   def testNewUser(self):
     """user authenticates"""
-    user = {
-        'username':'a',
-        'nonce': 'b',
-        'nextnonce': 'c',
-        'cnonce': 'd',
-        'response': 'e',
-        'passkey': '58e6b3a414a1e090dfc6029add0f3555ccba127f'
-        }
+    user = Prototype()
+    user.username = 'a'
+    user.nonce = 'b'
+    user.nextnonce = 'c'
+    user.cnonce = 'd'
+    user.response = 'e'
+    user.passkey = '58e6b3a414a1e090dfc6029add0f3555ccba127f'
     self.assertEqual(
-        pychap.authenticate(self.callback, **user),
+        pychap.authenticate(self.callback, user),
         self.user)
 
 class Unicode(unittest.TestCase):
@@ -343,16 +342,15 @@ class Unicode(unittest.TestCase):
 
   def testNewUser(self):
     """user authenticates"""
-    user = {
-        'username': u'a',
-        'nonce': u'b',
-        'nextnonce': u'c',
-        'cnonce': u'd',
-        'response': u'e',
-        'passkey': u'58e6b3a414a1e090dfc6029add0f3555ccba127f'
-        }
+    user = Prototype()
+    user.username = u'a'
+    user.nonce = u'b'
+    user.nextnonce = u'c'
+    user.cnonce = u'd'
+    user.response = u'e'
+    user.passkey = u'58e6b3a414a1e090dfc6029add0f3555ccba127f'
     self.assertEqual(
-        pychap.authenticate(self.callback, **user),
+        pychap.authenticate(self.callback, user),
         self.user)
 
 if __name__ == '__main__':
